@@ -42,17 +42,17 @@
 		_isArr = function(a){ return typeof a === 'object' ? (a.slice ? true : false) : false},
 		_dg2Rd = function(d){ return d*_PI/180; },
 		_rd2Dg = function(r){ return r/_PI*180; },
-		_toTM = {
+		_TDValue2TM = {
 				translate: function(t){
 					return	[[1, 0, +t[0]],
 							[0, 1, +t[1]],
 							[0, 0, 1]];
 				},
 				translateX: function(tx){
-					return _toTM.translate([tx, 0]);
+					return _TDValue2TM.translate([tx, 0]);
 				},
 				translateY: function(ty){
-					return _toTM.translate([0, ty]);
+					return _TDValue2TM.translate([0, ty]);
 				},
 				scale: function(s){
 					return	[[+s[0], 0, 0],
@@ -60,10 +60,10 @@
 							 [0, 0, 1]];
 				},
 				scaleX: function(sx){
-					return _toTM.scale([sx, 0]);
+					return _TDValue2TM.scale([sx, 0]);
 				},
 				scaleY: function(sy){
-					return _toTM.scale([0, sy]);
+					return _TDValue2TM.scale([0, sy]);
 				},
 				rotate: function(r){
 					return	[[Math.cos(_dg2Rd(+r)), -Math.sin(_dg2Rd(+r)), 0],
@@ -81,7 +81,7 @@
 							[0, 0, 1]];
 				},
 				matrix: function(matrix){
-					return matrix;
+					return _to2dTM(matrix);
 				}
 			},
 		//create a (m,n) Matrix with values = 0
@@ -176,7 +176,7 @@
 	//
 	//@return: Array multiplied matrix
 	function _dotMM(a, b){
-		console.log(a, b);
+
 		var row, column, i, 
 			aDms = _getDms(a), bDms = _getDms(b),
 			result = _newMatrix(aDms[0]);
@@ -190,14 +190,16 @@
 				}
 			}
 		}
+
 		return result;
 	}
+
 	//Return: Array | Number
 	function _dot(){
 		var a = arguments[0], b = arguments[1],
 			aDms = _getDms(a), bDms = _getDms(b),
 			argLength = arguments.length;
-
+		console.log(aDms, bDms);
 		//Handle vector dot
 		if(aDms[0] === 1 && bDms[0] === 1 && aDms[1] === bDms[1]){
 			return _dotVV(a, b);
@@ -208,8 +210,6 @@
 			throw new Error('Matrix multiply failed: _dot');
 		}
 	}
-
-	
 
 	function _toTDMatrixVector(input){
 		if(_isArr(input)){
@@ -225,7 +225,7 @@
 			if (tfMatrix_RE.exec(input) && input.match(float_RE).length !== 6) 
 				throw new Error('Input Error: _toTDMatrixVector')
 			//turn matix string into 3x3 matrix
-			input = _toTM3x3(input);
+			input = _to2dTM(input);
 		}
 
 		return [input[0][0], input[1][0], input[0][1], input[1][1], input[0][2], input[1][2]];
@@ -249,7 +249,7 @@
 				throw new Error('Input Error: _toTDMatrix');
 
 			//Handle transform matrix string;
-			return _TDStr2TM(input);
+			return _TDTo2dTM(input);
 
 		}else if(_isArr(input)){
 
@@ -262,27 +262,27 @@
 		}
 	}
 
+
 	//Translate a Transform Matrix into transform matrix string
 	//@parameters: Array [3x3 Transform Matrix]
 	//@return: String 'matrix(a,b,c,d,e,f)'
-	function _toTM3x3(input){
+	function _to2dTM(input){
+		if(_is2dTM(input)) return input;
+		if(typeof input === 'string') return _TDTo2dTM(input); 
+		if(!_isArr(input)) throw new Error('Input Error _to2dTM');
 
-		if(_isArr(input)){
-			//handle [a,b,c,d,e,f]
-			if(input.length === 6){
-				return [
-					[+input[0], +input[2], +input[4]],
-					[+input[1], +input[3], +input[5]],
-					[0, 0, 1]
-				];
-			//return if it's already a 3x3 
-			}else if(_getDms(input)[0] === 3 && _getDms(input)[1] === 3){
-				return input;
-			}else{
-				throw new Error('Input Error: _toTM3x3')
-			}
-		}else if(typeof input==='string'){
-			return _toTM3x3(input.match(float_RE));
+		//handle [a,b,c,d,e,f]
+		if(input.length === 6){
+			return [
+				[+input[0], +input[2], +input[4]],
+				[+input[1], +input[3], +input[5]],
+				[0, 0, 1]
+			];
+		//return if it's already a 3x3 
+		}else if(_is2dTM(input)){
+			return input;
+		}else{
+			throw new Error('Input Error: _to2dTM')
 		}
 	}
 	
@@ -290,9 +290,9 @@
 	//Calculate a series of transform,
 	//@paratmer: String like 'translateX(40px) rotate(30deg)'
 	//@return: Array [3x3 Transform Matrix]
-	function _TDStr2TM(input){
+	function _TDTo2dTM(input){
 		var stack, i, l, type, value, output;
-		if(typeof input !== 'string') throw new Error('Input error _TDStr2TM: not a valid transform string')
+		if(typeof input !== 'string') throw new Error('Input error _TDTo2dTM: not a valid transform string')
 
 		//Seperate each transform directive
 		stack = _splitTDStr(input);
@@ -300,10 +300,12 @@
 		//If input is 'none' or something else
 		if( !stack ) {
 
-			if( input.match('none') ) {
+			if(input.match('matrix')){
+
+			}else if( input.match('none') ) {
 				output = _noTransformTM;
 			}else{
-				throw new Error('Input error _TDStr2TM: not a valid transform string')
+				throw new Error('Input error _TDTo2dTM: not a valid transform string')
 			}
 	
 		//Turn input into matrix
@@ -316,8 +318,8 @@
 
 				//Translate transform directive into matrix, and dot to exist matrix
 				output = output ? 
-							_dot(output, _toTM[type](value)) : 
-							_toTM[type](value);
+							_dot(output, _TDValue2TM[type](value)) : 
+							_TDValue2TM[type](value);
 			}
 		}
 
@@ -345,7 +347,7 @@
 	tf.init.prototype = {
 		each: function(fn){
 			for(var i = 0; i < this.length; i++){
-				fn(this[i]);
+				fn.call(this[i], this[i]);
 			}
 			return this;
 		},
@@ -360,8 +362,8 @@
 				};
 
 			if(this.length > 1){
-				this.each(function(each){	
-					result.push(getTransform(each));
+				this.each(function(){	
+					result.push(getTransform(this));
 				});
 			}else{
 				result = getTransform(this[0]);
@@ -371,15 +373,20 @@
 		},
 
 		setTransform : function(input, duration){
-			duration = duration || 0;
-			var tfMtxStr = _toTDMatrix(_TDStr2TM(input));
+			var tfMtxStr;
 
+			duration = duration || 0;
+
+			//get matrix() string
+			tfMtxStr = _toTDMatrix( _to2dTM(input) );
+
+			//set transform property for each element
 			if(duration === 0){
-				this.each(function (each){
-					each.style.webkitTransform = tfMtxStr;
+				this.each(function (){
+					this.style.webkitTransform = tfMtxStr;
 					//firefox using Uppercase for first letter
-					each.style.MozTransform = tfMtxStr;
-					each.style.transform = tfMtxStr;
+					this.style.MozTransform = tfMtxStr;
+					this.style.transform = tfMtxStr;
 				})
 			}else{
 
@@ -404,9 +411,15 @@
 			return this;
 		},
 
-		appendTransform : function(input){
+		insertTransform : function(input){
 			this.setTransform( _dot(
-				_toTM3x3(input), _toTM3x3( this.getTransform() )
+				_to2dTM(input), _to2dTM( this.getTransform() )
+			));
+		},
+
+		addTransform: function(input){
+			this.setTransform( _dot(
+				_to2dTM( this.getTransform() ), _to2dTM(input)
 			));
 		}
 	}
