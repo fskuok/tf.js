@@ -1,11 +1,16 @@
-//Set css style
-//3d compatibility
-//em compatibility
+/***************  tf.js  *****************
+ *
+ * A lightweight javascript transform library
+ * By Fan Sai KUOK  fskuok@yahoo.com
+ * 
+ * Liscense under MIT
+ *
+ ****************************************/
 
 ;(function(){
 	'use strict'
 
-	var version = "0.1.0",
+	var version = "0.1.1",
 
 		tf = window.tf = function(selector){
 			if(!selector) return version;
@@ -100,47 +105,58 @@
 							[0, 1, +t[1]],
 							[0, 0, 1]];
 				},
+				
 				translateX: function(tx){
 					return _TDValue2TM.translate([tx, 0]);
 				},
+
 				translateY: function(ty){
 					return _TDValue2TM.translate([0, ty]);
 				},
+
 				scale: function(s){
 					return	[[+s[0], 0, 0],
 							 [0, +s[1], 0],
 							 [0, 0, 1]];
 				},
+
 				scaleX: function(sx){
 					return _TDValue2TM.scale([sx, 0]);
 				},
+
 				scaleY: function(sy){
 					return _TDValue2TM.scale([0, sy]);
 				},
+
 				rotate: function(r){
 					return	[[Math.cos(_dg2Rd(+r)), -Math.sin(_dg2Rd(+r)), 0],
 							 [Math.sin(_dg2Rd(+r)), Math.cos(_dg2Rd(+r)), 0],
 							 [0, 0, 1]];
 				},
+
 				skew: function(skx, sky){
 					return	[[1, Math.tan(_dg2Rd(+skx)), 0],
 							[Math.tan(_dg2Rd(+sky)), 1, 0],
 							[0, 0, 1]];
 				},
+
 				skewX: function(skx){
 					return	[[1, Math.tan(_dg2Rd(+skx)), 0],
 							[0, 1, 0],
 							[0, 0, 1]];
 				},
+
 				skewY: function(sky){
 					return	[[1, 0, 0],
 							[Math.tan(_dg2Rd(+sky)), 1, 0],
 							[0, 0, 1]];
 				},
+
 				matrix: function(matrix){
 					return _to2dTM(matrix);
 				}
 			},
+
 		//create a (m,n) Matrix with values = 0
 		//@parameter: Number m [, Number n]
 		//@return Array: (m, m) or (m,n) Matrix
@@ -158,6 +174,7 @@
 
 				return result;
 			},
+
 		//Examine is a variable is a matrix, a vector or other types
 		//@parameter: * data to be examined
 		//@return String 'martix'| 'vector' | Boolean false
@@ -165,15 +182,22 @@
 				var i, l, j;
 				if(_isArr(a)){
 					if(typeof a[0] === 'object'){
-						j=a[0].length;
-						for (i=1, l=a.length; i<l; i++){
-							if(!(_isArr(a[i]) && a[i].length === j)) return false;
+
+						j = a[0].length;
+						for ( i=1, l=a.length; i<l; i++ ){
+
+							if( !( _isArr(a[i] ) && a[i].length === j) ) 
+								return false;
+
 						}
 						return 'matrix';
+
 					}else{
 						return 'vector';
 					}
+
 				}else{
+
 					return false;
 				}
 			},
@@ -258,8 +282,10 @@
 			for( row=0; row < aDms[0]; row++ ){
 				for( column=0; column < aDms[0]; column++ ){
 					for( i=0; i<aDms[0]; i++ ){
+
 						result[row][column] += 
 							(a[row][i] ? a[row][i] : 0) * ( b[i][column] ? b[i][column] : 0);
+
 					}
 
 					//elinminate inaccuracy
@@ -285,8 +311,10 @@
 				throw new Error('Input Error: _toTDMatrixVector')
 
 		}else if(typeof input === 'string'){
+
 			if (tfMatrix_RE.exec(input) && input.match(float_RE).length !== 6) 
 				throw new Error('Input Error: _toTDMatrixVector')
+
 			//turn matix string into 3x3 matrix
 			input = _to2dTM(input);
 		}
@@ -294,7 +322,6 @@
 		return [input[0][0], input[1][0], input[0][1], input[1][1], input[0][2], input[1][2]];
 	}
 
-	
 
 	//Decompose transform directives string,
 	//Arg: String like 'translateX(40px) rotate(30deg)'
@@ -341,7 +368,7 @@
 				[+input[1], +input[3], +input[5]],
 				[0, 0, 1]
 			];
-		//return if it's already a 3x3 
+		//return if input is already a 2D Transform Matrix 
 		}else if(_is2dTM(input)){
 			return input;
 		}else{
@@ -349,7 +376,6 @@
 		}
 	}
 	
-
 	//Calculate a series of transform,
 	//@paratmer: String like 'translateX(40px) rotate(30deg)'
 	//@return: Array [3x3 Transform Matrix]
@@ -364,7 +390,7 @@
 		if( !stack ) {
 
 			if(input.match('matrix')){
-
+				//NEED FIXED
 			}else if( input.match('none') ) {
 				output = _noTransformTM;
 			}else{
@@ -465,138 +491,17 @@
 				: this.getTransform();
 		},
 
+		//@parameter: String like 'rotate( 45deg ) transform(100px, 32px)'
+		addTransform: function(input){
+			this.setTransform( _dot(
+				_to2dTM( this.getTransform() ), _to2dTM(input)
+			));
+		},
 
 		insertTransform : function(input){
 			this.setTransform( _dot(
 				_to2dTM(input), _to2dTM( this.getTransform() )
 			));
-		},
-
-		//Shortcuts for 2d translates inserttransforms
-		insertRotate: function(r){
-			this.insertTransform(_TDF.r + _TDF.LB + r + _TDF.deg + _TDF.RB);
-		},
-		//Shortcuts for 2d translates inserttransforms
-		insertTranslate: function(tx, ty){
-			//handle argument [tx, ty]
-			if(_isArr(t)) {
-				ty = tx[1];
-				tx = tx[0];
-			}
-			this.insertTransform(_TDF.t + _TDF.LB + 
-								tx + _TDF.px + _TDF.CM + 
-								ty + _TDF.px + 
-								_TDF.RB);
-		},
-		insertTranslateX: function(tx){
-			this.insertTranslate(tx, 0);
-		},
-		insertTranslateY: function(ty){
-			this.insertTranslate(0, ty);
-		},
-		//Shortcuts for 2d scales inserttransforms
-		insertScale: function(sx, sy){
-			//handle argument [sx, sy]
-			if(_isArr(sx)) {
-				sy = sx[1];
-				sx = sx[0];
-			}
-			this.insertTransform(_TDF.s + _TDF.LB + 
-								sx + _TDF.px + _TDF.CM + 
-								sy + _TDF.px + 
-								_TDF.RB);
-		},
-		insertScaleX: function(sx){
-			this.insertScale(sx, 0);
-		},
-		insertScaleY: function(sy){
-			this.insertScale(0, sy);
-		},
-		//Shortcuts for 2d scales inserttransforms
-		insertSkew: function(skx, sky){
-			//handle argument [skx, sky]
-			if(_isArr(skx)) {
-				sky = skx[1];
-				skx = skx[0];
-			}
-			this.insertTransform(_TDF.sk + _TDF.LB + 
-								skx + _TDF.deg + _TDF.CM + 
-								sky + _TDF.deg + 
-								_TDF.RB);
-		},
-		insertSkewX: function(skx){
-			this.insertSkew(skx, 0);
-		},
-		insertSkewY: function(sky){
-			this.insertSkew(0, sky);
-		},
-
-		//@parameter: String like 'rotate( 45deg ) transform(100px, 32px)'
-		addTransform: function(input){
-			console.log(_dot(
-				_to2dTM( this.getTransform() ), _to2dTM(input)
-			));
-			this.setTransform( _dot(
-				_to2dTM( this.getTransform() ), _to2dTM(input)
-			));
-		},
-		//Shortcuts for 2d translates addtransforms
-		addRotate: function(r){
-			this.addTransform(_TDF.r + _TDF.LB + r + _TDF.deg + _TDF.RB);
-		},
-		//Shortcuts for 2d translates addtransforms
-		addTranslate: function(tx, ty){
-			//handle argument [tx, ty]
-			if(_isArr(t)) {
-				ty = tx[1];
-				tx = tx[0];
-			}
-			this.addTransform(_TDF.t + _TDF.LB + 
-								tx + _TDF.px + _TDF.CM + 
-								ty + _TDF.px + 
-								_TDF.RB);
-		},
-		addTranslateX: function(tx){
-			this.addTranslate(tx, 0);
-		},
-		addTranslateY: function(ty){
-			this.addTranslate(0, ty);
-		},
-		//Shortcuts for 2d scales addtransforms
-		addScale: function(sx, sy){
-			//handle argument [sx, sy]
-			if(_isArr(sx)) {
-				sy = sx[1];
-				sx = sx[0];
-			}
-			this.addTransform(_TDF.s + _TDF.LB + 
-								sx + _TDF.px + _TDF.CM + 
-								sy + _TDF.px + 
-								_TDF.RB);
-		},
-		addScaleX: function(sx){
-			this.addScale(sx, 0);
-		},
-		addScaleY: function(sy){
-			this.addScale(0, sy);
-		},
-		//Shortcuts for 2d scales addtransforms
-		addSkew: function(skx, sky){
-			//handle argument [skx, sky]
-			if(_isArr(skx)) {
-				sky = skx[1];
-				skx = skx[0];
-			}
-			this.addTransform(_TDF.sk + _TDF.LB + 
-								skx + _TDF.deg + _TDF.CM + 
-								sky + _TDF.deg + 
-								_TDF.RB);
-		},
-		addSkewX: function(skx){
-			this.addSkew(skx, 0);
-		},
-		addSkewY: function(sky){
-			this.addSkew(0, sky);
 		},
 
 		learn : function(teacher){
@@ -607,6 +512,55 @@
 			learner.setTransform( this.getTransform() );
 			return this;
 		},
-	}
+	};
+
+	(function dynamicAddMethods(){
+		var i, type, uppercasedType;
+
+		for(i in _transforms){
+
+			type = _transforms[i];
+			
+			tf.init.prototype[type] = (function(type){
+				return function(){
+					this.setTransform(
+							type + '(' + Array.prototype.join.call(arguments, ',') + ')'
+						);
+					return this;
+				}
+			})(type);
+
+			uppercasedType = type.charAt(0).toUpperCase() + type.substr(1);
+
+			tf.init.prototype['add'+uppercasedType] = (function(type){
+				return function(){
+					this.addTransform(
+							type + '(' + Array.prototype.join.call(arguments, ',') + ')'
+						);
+					return this;
+				}
+			})(type);
+
+			tf.init.prototype['insert'+uppercasedType] = (function(type){
+				return function(){
+					this.insertTransform(
+							type + '(' + Array.prototype.join.call(arguments, ',') + ')'
+						);
+					return this;
+				}
+			})(type);
+		}
+	})();
 	
 })();
+
+
+/********  Features Tring to add  ********
+ *
+ * Set css style
+ * 3D compatibility
+ * em compatibility
+ * Transition & Animation
+ *
+ ****************************************/
+
