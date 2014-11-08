@@ -1,5 +1,6 @@
 //Set css style
 //3d compatibility
+//em compatibility
 
 ;(function(){
 	'use strict'
@@ -31,15 +32,66 @@
 					heir[key] = prototype[key];
 				}
 			}
-		}
+		},
+		//inspired by Modernizr http://www.modernizr.com/
+		_pfx = (function () {
+        
+	        var browserStyle = document.createElement('pfx').style,
+	            prefixes = 'Webkit Moz O ms Khtml'.split(' '),
+	            memory = {};
+	        
+	        return function ( prop ) {
+	        	var i;
+
+	            if ( typeof memory[ prop ] === "undefined" ) {
+	                
+
+	                var ucProp = prop.charAt(0).toUpperCase() + prop.substr(1),
+	                    props = (prop + ' ' + prefixes.join(ucProp + ' ') + ucProp).split(' ');
+	                
+
+	                memory[ prop ] = null;
+
+	                for ( i in props ) {
+	                    if ( browserStyle[ props[i] ] !== undefined ) {
+	                        memory[ prop ] = props[i];
+	                        break;
+	                    }
+	                }
+	            
+	            }
+	            
+	            return memory[ prop ];
+	        };
+	    
+	    })();
 
 	var float_RE = /\-?[0-9]+(\.[0-9]*)?/g,
 		tfMatrix_RE = /^matrix\(.*\)$/,
 		tfDirectiveType_RE = /(rotate|translate|skew|scale|matrix)([XYZ]|(3d))?/g,
 		tfDirective_RE = /(rotate|translate|skew|scale|matrix)([XYZ]|(3d))?\([^\)]*\)/g,
 		_noTransformTM = [[1,0,0],[0,1,0],[0,0,1]],
+		//transform directives fragments
+		_transforms = 'rotate|translate|translateX|translateY|scale|scaleX|scaleY|skew|skewX|skewY'.split('|'),
+		_TDF = {
+			r: 'rotate',
+			t: 'translate',
+			tx: 'translateX',
+			ty: 'translateY',
+			s: 'scale',
+			sx: 'scaleX',
+			sy: 'scaleY',
+			sk: 'skew',
+			skx: 'skewX',
+			sky: 'skewY',
+			px: 'px',
+			deg: 'deg',
+			LB: '(',
+			RB: ')',
+			CM: ','
+		},
 		_PI = Math.PI,
-		_isArr = function(a){ return typeof a === 'object' ? (a.slice ? true : false) : false},
+		_isArr = function(a){ return typeof a === 'object' ? (a.slice ? true : false) : false },
 		_dg2Rd = function(d){ return d*_PI/180; },
 		_rd2Dg = function(r){ return r/_PI*180; },
 		_TDValue2TM = {
@@ -70,14 +122,19 @@
 							 [Math.sin(_dg2Rd(+r)), Math.cos(_dg2Rd(+r)), 0],
 							 [0, 0, 1]];
 				},
-				skewX: function(skewX){
-					return	[[1, Math.tan(+skewX), 0],
+				skew: function(skx, sky){
+					return	[[1, Math.tan(_dg2Rd(+skx)), 0],
+							[Math.tan(_dg2Rd(+sky)), 1, 0],
+							[0, 0, 1]];
+				},
+				skewX: function(skx){
+					return	[[1, Math.tan(_dg2Rd(+skx)), 0],
 							[0, 1, 0],
 							[0, 0, 1]];
 				},
-				skewY: function(skewY){
+				skewY: function(sky){
 					return	[[1, 0, 0],
-							[Math.tan(+skewY), 1, 0],
+							[Math.tan(_dg2Rd(+sky)), 1, 0],
 							[0, 0, 1]];
 				},
 				matrix: function(matrix){
@@ -158,48 +215,13 @@
 			};
 
 	
-	//multiply two vector
-	//@parameter: Array a, Array b
-	//@return: number
-	function _dotVV(a, b){
-
-		var result = 0, 
-			i = 0,
-			n = _getDms(a)[1];
-
-		for(; i<n; i++){
-			result += a[i]*b[i];
-		}
-		return result;	
-	}
-
-	//
-	//@return: Array multiplied matrix
-	function _dotMM(a, b){
-
-		var row, column, i, 
-			aDms = _getDms(a), bDms = _getDms(b),
-			result = _newMatrix(aDms[0]);
-
-
-		for( row=0; row < aDms[0]; row++ ){
-			for( column=0; column < aDms[0]; column++ ){
-				for( i=0; i<aDms[0]; i++ ){
-					result[row][column] += 
-						(a[row][i] ? a[row][i] : 0) * ( b[i][column] ? b[i][column] : 0);
-				}
-			}
-		}
-
-		return result;
-	}
+	
 
 	//Return: Array | Number
 	function _dot(){
 		var a = arguments[0], b = arguments[1],
 			aDms = _getDms(a), bDms = _getDms(b),
 			argLength = arguments.length;
-		console.log(aDms, bDms);
 		//Handle vector dot
 		if(aDms[0] === 1 && bDms[0] === 1 && aDms[1] === bDms[1]){
 			return _dotVV(a, b);
@@ -209,6 +231,47 @@
 		}else{
 			throw new Error('Matrix multiply failed: _dot');
 		}
+		//multiply two vector
+		//@parameter: Array a, Array b
+		//@return: number
+		function _dotVV(a, b){
+
+			var result = 0, 
+				i = 0,
+				n = _getDms(a)[1];
+
+			for(; i<n; i++){
+				result += a[i]*b[i];
+			}
+			return result;	
+		}
+
+		//
+		//@return: Array multiplied matrix
+		function _dotMM(a, b){
+
+			var row, column, i, 
+				aDms = _getDms(a), bDms = _getDms(b),
+				result = _newMatrix(aDms[0]);
+
+
+			for( row=0; row < aDms[0]; row++ ){
+				for( column=0; column < aDms[0]; column++ ){
+					for( i=0; i<aDms[0]; i++ ){
+						result[row][column] += 
+							(a[row][i] ? a[row][i] : 0) * ( b[i][column] ? b[i][column] : 0);
+					}
+
+					//elinminate inaccuracy
+					//eg. if rotate 45deg twice, result will be wrong without elinminating the very small error
+					if(Math.abs(result[row][column])<0.0000001){
+						result[row][column] = 0;
+					}
+				}
+			}
+
+			return result;
+		}
 	}
 
 	function _toTDMatrixVector(input){
@@ -217,8 +280,8 @@
 			if(_getDms(input)[0] === 1 && _getDms(input)[1] === 6) 
 				return input;
 
-			//if its not 
-			if(!(_getDms(input)[0] === 3 && _getDms(input)[1] === 3)) 
+			//throw error, if its not a 2d transform matrix
+			if(!_is2dTM(input))
 				throw new Error('Input Error: _toTDMatrixVector')
 
 		}else if(typeof input === 'string'){
@@ -402,6 +465,140 @@
 				: this.getTransform();
 		},
 
+
+		insertTransform : function(input){
+			this.setTransform( _dot(
+				_to2dTM(input), _to2dTM( this.getTransform() )
+			));
+		},
+
+		//Shortcuts for 2d translates inserttransforms
+		insertRotate: function(r){
+			this.insertTransform(_TDF.r + _TDF.LB + r + _TDF.deg + _TDF.RB);
+		},
+		//Shortcuts for 2d translates inserttransforms
+		insertTranslate: function(tx, ty){
+			//handle argument [tx, ty]
+			if(_isArr(t)) {
+				ty = tx[1];
+				tx = tx[0];
+			}
+			this.insertTransform(_TDF.t + _TDF.LB + 
+								tx + _TDF.px + _TDF.CM + 
+								ty + _TDF.px + 
+								_TDF.RB);
+		},
+		insertTranslateX: function(tx){
+			this.insertTranslate(tx, 0);
+		},
+		insertTranslateY: function(ty){
+			this.insertTranslate(0, ty);
+		},
+		//Shortcuts for 2d scales inserttransforms
+		insertScale: function(sx, sy){
+			//handle argument [sx, sy]
+			if(_isArr(sx)) {
+				sy = sx[1];
+				sx = sx[0];
+			}
+			this.insertTransform(_TDF.s + _TDF.LB + 
+								sx + _TDF.px + _TDF.CM + 
+								sy + _TDF.px + 
+								_TDF.RB);
+		},
+		insertScaleX: function(sx){
+			this.insertScale(sx, 0);
+		},
+		insertScaleY: function(sy){
+			this.insertScale(0, sy);
+		},
+		//Shortcuts for 2d scales inserttransforms
+		insertSkew: function(skx, sky){
+			//handle argument [skx, sky]
+			if(_isArr(skx)) {
+				sky = skx[1];
+				skx = skx[0];
+			}
+			this.insertTransform(_TDF.sk + _TDF.LB + 
+								skx + _TDF.deg + _TDF.CM + 
+								sky + _TDF.deg + 
+								_TDF.RB);
+		},
+		insertSkewX: function(skx){
+			this.insertSkew(skx, 0);
+		},
+		insertSkewY: function(sky){
+			this.insertSkew(0, sky);
+		},
+
+		//@parameter: String like 'rotate( 45deg ) transform(100px, 32px)'
+		addTransform: function(input){
+			console.log(_dot(
+				_to2dTM( this.getTransform() ), _to2dTM(input)
+			));
+			this.setTransform( _dot(
+				_to2dTM( this.getTransform() ), _to2dTM(input)
+			));
+		},
+		//Shortcuts for 2d translates addtransforms
+		addRotate: function(r){
+			this.addTransform(_TDF.r + _TDF.LB + r + _TDF.deg + _TDF.RB);
+		},
+		//Shortcuts for 2d translates addtransforms
+		addTranslate: function(tx, ty){
+			//handle argument [tx, ty]
+			if(_isArr(t)) {
+				ty = tx[1];
+				tx = tx[0];
+			}
+			this.addTransform(_TDF.t + _TDF.LB + 
+								tx + _TDF.px + _TDF.CM + 
+								ty + _TDF.px + 
+								_TDF.RB);
+		},
+		addTranslateX: function(tx){
+			this.addTranslate(tx, 0);
+		},
+		addTranslateY: function(ty){
+			this.addTranslate(0, ty);
+		},
+		//Shortcuts for 2d scales addtransforms
+		addScale: function(sx, sy){
+			//handle argument [sx, sy]
+			if(_isArr(sx)) {
+				sy = sx[1];
+				sx = sx[0];
+			}
+			this.addTransform(_TDF.s + _TDF.LB + 
+								sx + _TDF.px + _TDF.CM + 
+								sy + _TDF.px + 
+								_TDF.RB);
+		},
+		addScaleX: function(sx){
+			this.addScale(sx, 0);
+		},
+		addScaleY: function(sy){
+			this.addScale(0, sy);
+		},
+		//Shortcuts for 2d scales addtransforms
+		addSkew: function(skx, sky){
+			//handle argument [skx, sky]
+			if(_isArr(skx)) {
+				sky = skx[1];
+				skx = skx[0];
+			}
+			this.addTransform(_TDF.sk + _TDF.LB + 
+								skx + _TDF.deg + _TDF.CM + 
+								sky + _TDF.deg + 
+								_TDF.RB);
+		},
+		addSkewX: function(skx){
+			this.addSkew(skx, 0);
+		},
+		addSkewY: function(sky){
+			this.addSkew(0, sky);
+		},
+
 		learn : function(teacher){
 			return this.setTransform( teacher.getTransform() );
 		},
@@ -410,19 +607,6 @@
 			learner.setTransform( this.getTransform() );
 			return this;
 		},
-
-		insertTransform : function(input){
-			this.setTransform( _dot(
-				_to2dTM(input), _to2dTM( this.getTransform() )
-			));
-		},
-
-		addTransform: function(input){
-			this.setTransform( _dot(
-				_to2dTM( this.getTransform() ), _to2dTM(input)
-			));
-		}
 	}
-	
 	
 })();
