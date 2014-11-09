@@ -75,20 +75,29 @@
 		tfMatrix_RE = /^matrix\(.*\)$/,
 		tfDirectiveType_RE = /(rotate|translate|skew|scale|matrix)([XYZ]|(3d))?/g,
 		tfDirective_RE = /(rotate|translate|skew|scale|matrix)([XYZ]|(3d))?\([^\)]*\)/g,
-		_noTransformTM = [[1,0,0],[0,1,0],[0,0,1]],
+		_noTransformTM = [[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]],
 		//transform directives fragments
-		_transforms = 'rotate|translate|translateX|translateY|scale|scaleX|scaleY|skew|skewX|skewY'.split('|'),
+		_transforms = 'rotate|rotate3d|rotateX|rotateY|rotateZ|translate|translate3d|translateX|translateY|translateZ|scale|scaleX|scaleY|scaleZ|skew|skewX|skewY|skewZ'.split('|'),
 		_TDF = {
 			r: 'rotate',
+			r3d: 'rotate3d',
+			rx: 'rotateX',
+			ry: 'rotateY',
+			rz: 'rotateZ',
 			t: 'translate',
+			t3d: 'translate3d',
 			tx: 'translateX',
 			ty: 'translateY',
+			tz: 'translateZ',
 			s: 'scale',
+			s3d: 'scale3d',
 			sx: 'scaleX',
 			sy: 'scaleY',
+			sz: 'scaleZ',
 			sk: 'skew',
 			skx: 'skewX',
 			sky: 'skewY',
+			skz: 'skewZ',
 			px: 'px',
 			deg: 'deg',
 			LB: '(',
@@ -100,60 +109,108 @@
 		_dg2Rd = function(d){ return d*_PI/180; },
 		_rd2Dg = function(r){ return r/_PI*180; },
 		_TDValue2TM = {
-				translate: function(t){
-					return	[[1, 0, +t[0]],
-							[0, 1, +t[1]],
-							[0, 0, 1]];
+				translate3d: function(t3d){
+					return	[[1, 0, 0, +t3d[0]],
+							 [0, 1, 0, +t3d[1]],
+							 [0, 0, 1, +t3d[2]],
+							 [0, 0, 0, 1]];
 				},
+
+				translate: function(t){
+					t.push(0);
+					return _TDValue2TM.translate3d(t);
+				}
 				
 				translateX: function(tx){
-					return _TDValue2TM.translate([tx, 0]);
+					return _TDValue2TM.translate([tx, 0, 0]);
 				},
 
 				translateY: function(ty){
-					return _TDValue2TM.translate([0, ty]);
+					return _TDValue2TM.translate([0, ty, 0]);
+				},
+
+				translateZ: function(tz){
+					return _TDValue2TM.translate([0, 0, tz]);
+				},
+
+				scale3d: function(s){
+					return	[[+s[0], 0,     0,     0],
+							 [0,     +s[1], 0,     0],
+							 [0,     0,     +s[2], 0],
+							 [0,     0,     0,     1]];
 				},
 
 				scale: function(s){
-					return	[[+s[0], 0, 0],
-							 [0, +s[1], 0],
-							 [0, 0, 1]];
-				},
+					s.push(0);
+					return _TDValue2TM.scale3d(s);
+				}
 
 				scaleX: function(sx){
-					return _TDValue2TM.scale([sx, 0]);
+					return _TDValue2TM.scale([sx, 0, 0]);
 				},
 
 				scaleY: function(sy){
-					return _TDValue2TM.scale([0, sy]);
+					return _TDValue2TM.scale([0, sy, 0]);
 				},
 
-				rotate: function(r){
-					return	[[Math.cos(_dg2Rd(+r)), -Math.sin(_dg2Rd(+r)), 0],
-							 [Math.sin(_dg2Rd(+r)), Math.cos(_dg2Rd(+r)), 0],
-							 [0, 0, 1]];
+				scaleZ: function(sz){
+					return _TDValue2TM.scale([0, 0, sz]);
+				},
+
+				rotate3d: function(r){
+					var x= r[0], y = r[1], z = r[2], a=r[3],
+						sc=Math.sin(_dg2Rd((+a)/2))*Math.cos(_dg2Rd((+a)/2)),
+						sq=Math.sin(_dg2Rd((+a)/2));
+
+					return	[[1-2*(y*y+z*z)*sq, 2*(x*y*sq-z*sc),  2*(x*z*sq+y*sc),  0],
+							 [2*(x*y*sq+z*sc),  1-2*(x*x+z*z)*sq, 2*(y*z*sq-x*sc),  0],
+							 [2*(x*z*sq-y*sc),  2*(y*z*sq+x*sc),  1-2*(y*y+x*x)*sq, 0],
+							 [0, 				0, 				  0, 				1]];
+				},
+
+				rotate: function(){
+					return _TDValue2TM.rotate3d([0,0,1,rz]);
+				},
+
+				rotateX: function(rx){
+					return	_TDValue2TM.rotate3d([1,0,0,rx]);
+				},
+
+				rotateY: function(rx){
+					return	_TDValue2TM.rotate3d([0,1,0,ry]);
+				},
+
+				rotateZ: function(rx){
+					return	_TDValue2TM.rotate3d([0,0,1,rz]);
 				},
 
 				skew: function(skx, sky){
-					return	[[1, Math.tan(_dg2Rd(+skx)), 0],
-							[Math.tan(_dg2Rd(+sky)), 1, 0],
-							[0, 0, 1]];
+					return	[[1,                      Math.tan(_dg2Rd(+skx)), 0, 0],
+							 [Math.tan(_dg2Rd(+sky)), 1,                      0, 0],
+							 [0,                      0,                      1, 0]
+							 [0,                      0,                      0, 1]];
 				},
 
 				skewX: function(skx){
-					return	[[1, Math.tan(_dg2Rd(+skx)), 0],
-							[0, 1, 0],
-							[0, 0, 1]];
+					return	[[1, Math.tan(_dg2Rd(+skx)), 0, 0],
+							 [0, 1,                      0, 0],
+							 [0, 0,                      1, 0],
+							 [0, 0,                      0, 1]];
 				},
 
 				skewY: function(sky){
-					return	[[1, 0, 0],
-							[Math.tan(_dg2Rd(+sky)), 1, 0],
-							[0, 0, 1]];
+					return	[[1,                      0, 0, 0],
+							 [Math.tan(_dg2Rd(+sky)), 1, 0, 0],
+							 [0,                      0, 1, 0],
+							 [0,                      0, 0, 1]];
 				},
 
 				matrix: function(matrix){
 					return _to2dTM(matrix);
+				},
+
+				matrix3d: function(matrix){
+					return _to3dTM(matrix);
 				}
 			},
 
@@ -236,6 +293,26 @@
 				}else{
 					return false;
 				}
+			},
+
+		_2dTMTo3dTM = function(2dTM){
+				if(!_is2dTM(2dTM)) 
+					throw new Error('Input Error: _2dTMto3dTM');
+
+				return [[2dTM[0][0], 2dTM[0][1], 0, 2dTM[0][2]],
+						[2dTM[1][0], 2dTM[1][1], 0, 2dTM[1][2]],
+						[0, 0, 1, 0],
+						[0, 0, 0, 1]];
+			},
+
+		_2dVectorTo3dVector = function(2dVector){
+				if(!(_isArr(2dVector) && 2dVector.length === 6)) 
+					throw new Error('Input Error: _2dTMto3dTM');
+
+				return [2dVector[0], 2dVector[1], 0, 0, 
+						2dVector[2], 2dVector[3], 0, 0, 
+						0,0,1,0,
+						2dVector[4], 2dVector[5], 0, 1];
 			};
 
 	
@@ -300,28 +377,41 @@
 		}
 	}
 
+	//return 3d matrix(n,n,n,n,n,n,n,n,n,n,n,n,n,n,n,n)
 	function _toTDMatrixVector(input){
 		if(_isArr(input)){
 			//return if input is already a 6 vector
-			if(_getDms(input)[0] === 1 && _getDms(input)[1] === 6) 
+			if(_getDms(input)[0] === 1 && _getDms(input)[1] === 16) 
 				return input;
+
+			if(_getDms(input)[0] === 1 && _getDms(input)[1] === 6) 
+				return _toTDMatrixVector( _2dVectorTo3dVector(input) );
 
 			//throw error, if its not a 2d transform matrix
 			if(!_is2dTM(input))
 				throw new Error('Input Error: _toTDMatrixVector')
-			
+
 			//go to the return at the end
 
 		}else if(typeof input === 'string'){
 
-			if (tfMatrix_RE.exec(input) && input.match(float_RE).length !== 6) 
+			if (tfMatrix_RE.exec(input) && (input.match(float_RE).length !== 6 || input.match(float_RE).length !== 16) 
 				throw new Error('Input Error: _toTDMatrixVector')
 
 			//turn matix string into 3x3 matrix
-			input = _to2dTM(input);
+			if(input.match(float_RE).length === 6)
+			input = _2dTMTo3dTM(_to2dTM(input));
+
+			//turn matix string into 3x3 matrix
+			if(input.match(float_RE).length === 16)
+			input = _to3dTM(input);
+
 		}
 
-		return [input[0][0], input[1][0], input[0][1], input[1][1], input[0][2], input[1][2]];
+		return [input[0][0], input[1][0], input[2][0], input[3][0], 
+				input[0][1], input[1][1], input[2][1], input[3][1], 
+				input[0][2], input[1][2], input[2][2], input[3][2],
+				input[0][3], input[1][3], input[2][3], input[3][3]];
 	}
 
 
@@ -333,24 +423,31 @@
 	}
 
 	//Translate a Transform Matrix into transform matrix string
-	//@parameters: Array [3x3 Transform Matrix]
-	//@return: String 'matrix(a,b,c,d,e,f)'
+	//@parameters: Array [3x3 Transform Matrix] | [4x4 Transform Matrix]
+	//@return: String 'matrix(n{15,15})'
 	function _toTDMatrix(input){
+		var type;
 		if(typeof input === 'string'){
-			if (tfMatrix_RE.exec(input) && input.match(float_RE).length !== 6) 
+			if (tfMatrix_RE.exec(input) && (input.match(float_RE).length !== 6 || input.match(float_RE).length !== 16) 
 				throw new Error('Input Error: _toTDMatrix');
 
 			//Handle transform matrix string;
-			return _toTDMatrix(_TDTo2dTM(input));
+			if(input.match(float_RE).length === 6)
+				//MODIFY END
+				return _toTDMatrix(_TDTo2dTM(input));
+
+			if(input.match(float_RE).length === 16)
+
 
 		}else if(_isArr(input)){
 
 			//Handle 3x3 matrix: turn into 1x6 vector
 			if(_is2dTM(input)){
+				type = 'matrix('
 				input = [input[0][0], input[1][0], input[0][1], input[1][1], input[0][2], input[1][2]];
 			}
 
-			return 'matrix(' + input.join(', ') + ')'
+			return type + input.join(', ') + ')'
 		}
 	}
 

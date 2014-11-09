@@ -1,8 +1,9 @@
 tf.js
+----
 A lightweight JavaScript library for 2D transformations
 Modify CSS transform properties through Transform Matrix Calculation
 
-API:
+API
 ----
 
 **tf( String selector )**
@@ -13,22 +14,22 @@ Create a tf object using CSS Selectors
 
 Iterate elements in the tfObj, passing each element as the first argument of the callback function, and also set `this` to each element
 
-**tfObj.transform( [String cssTransformProperty] )**
+**tfObj.transform( [String CSSTransformProperty] )**
 
 A getter & setter method will call either `setTranform` or `getTransform`
 
-**tfObj.getTransform( [String cssTransformProperty] )**
+**tfObj.getTransform( [String CSSTransformProperty] )**
 
 Return an array contains transform property of each DOM element
 
-**tfObj.setTransform( String cssTransformProperty )**
+**tfObj.setTransform( String CSSTransformProperty )**
 
 Set transform property for each element
 
-**tfObj.addTransform( String cssTransformProperty )**
+**tfObj.addTransform( String CSSTransformProperty )**
 Apply the passed in transform before the transforms that elements already have
 
-**tfObj.insertTransform( String cssTransformProperty )** 
+**tfObj.insertTransform( String CSSTransformProperty )** 
 Apply the passed in transform after the transforms that elements already have
 
 
