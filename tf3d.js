@@ -72,7 +72,7 @@
 	    })();
 
 	var float_RE = /\-?[0-9]+(\.[0-9]*)?/g,
-		tfMatrix_RE = /^matrix\(.*\)$/,
+		matrix_RE = /^matrix\(.*\)$/,
 		tfDirectiveType_RE = /(rotate|translate|skew|scale|matrix)([XYZ]|(3d))?/g,
 		tfDirective_RE = /(rotate|translate|skew|scale|matrix)([XYZ]|(3d))?\([^\)]*\)/g,
 		_noTransformTM = [[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]],
@@ -106,9 +106,9 @@
 		},
 		_PI = Math.PI,
 		_isArr = function(a){ return typeof a === 'object' ? (a.slice ? true : false) : false },
-		_dg2Rd = function(d){ return d*_PI/180; },
+		_degToRad = function(d){ return d*_PI/180; },
 		_rd2Dg = function(r){ return r/_PI*180; },
-		_TDValue2TM = {
+		_propValueToMatrix3dArr = {
 				translate3d: function(t3d){
 					return	[[1, 0, 0, +t3d[0]],
 							 [0, 1, 0, +t3d[1]],
@@ -118,19 +118,19 @@
 
 				translate: function(t){
 					t.push(0);
-					return _TDValue2TM.translate3d(t);
-				}
+					return _propValueToMatrix3dArr.translate3d(t);
+				},
 				
 				translateX: function(tx){
-					return _TDValue2TM.translate([tx, 0, 0]);
+					return _propValueToMatrix3dArr.translate([tx, 0, 0]);
 				},
 
 				translateY: function(ty){
-					return _TDValue2TM.translate([0, ty, 0]);
+					return _propValueToMatrix3dArr.translate([0, ty, 0]);
 				},
 
 				translateZ: function(tz){
-					return _TDValue2TM.translate([0, 0, tz]);
+					return _propValueToMatrix3dArr.translate([0, 0, tz]);
 				},
 
 				scale3d: function(s){
@@ -141,26 +141,26 @@
 				},
 
 				scale: function(s){
-					s.push(0);
-					return _TDValue2TM.scale3d(s);
-				}
+					s.push(1);
+					return _propValueToMatrix3dArr.scale3d(s);
+				},
 
 				scaleX: function(sx){
-					return _TDValue2TM.scale([sx, 0, 0]);
+					return _propValueToMatrix3dArr.scale([sx, 1, 1]);
 				},
 
 				scaleY: function(sy){
-					return _TDValue2TM.scale([0, sy, 0]);
+					return _propValueToMatrix3dArr.scale([1, sy, 1]);
 				},
 
 				scaleZ: function(sz){
-					return _TDValue2TM.scale([0, 0, sz]);
+					return _propValueToMatrix3dArr.scale([1, 1, sz]);
 				},
 
 				rotate3d: function(r){
 					var x= r[0], y = r[1], z = r[2], a=r[3],
-						sc=Math.sin(_dg2Rd((+a)/2))*Math.cos(_dg2Rd((+a)/2)),
-						sq=Math.sin(_dg2Rd((+a)/2));
+						sc=Math.sin(_degToRad((+a)/2))*Math.cos(_degToRad((+a)/2)),
+						sq=Math.sin(_degToRad((+a)/2));
 
 					return	[[1-2*(y*y+z*z)*sq, 2*(x*y*sq-z*sc),  2*(x*z*sq+y*sc),  0],
 							 [2*(x*y*sq+z*sc),  1-2*(x*x+z*z)*sq, 2*(y*z*sq-x*sc),  0],
@@ -168,51 +168,53 @@
 							 [0, 				0, 				  0, 				1]];
 				},
 
-				rotate: function(){
-					return _TDValue2TM.rotate3d([0,0,1,rz]);
+				rotate: function(r){
+					return _propValueToMatrix3dArr.rotateZ(r);
 				},
 
 				rotateX: function(rx){
-					return	_TDValue2TM.rotate3d([1,0,0,rx]);
+					return	_propValueToMatrix3dArr.rotate3d([1,0,0,rx]);
 				},
 
-				rotateY: function(rx){
-					return	_TDValue2TM.rotate3d([0,1,0,ry]);
+				rotateY: function(ry){
+					return	_propValueToMatrix3dArr.rotate3d([0,1,0,ry]);
 				},
 
-				rotateZ: function(rx){
-					return	_TDValue2TM.rotate3d([0,0,1,rz]);
+				rotateZ: function(rz){
+					return	_propValueToMatrix3dArr.rotate3d([0,0,1,rz]);
 				},
 
 				skew: function(skx, sky){
-					return	[[1,                      Math.tan(_dg2Rd(+skx)), 0, 0],
-							 [Math.tan(_dg2Rd(+sky)), 1,                      0, 0],
-							 [0,                      0,                      1, 0]
-							 [0,                      0,                      0, 1]];
+					return	[[1,                         Math.tan(_degToRad(+skx)), 0, 0],
+							 [Math.tan(_degToRad(+sky)), 1,                         0, 0],
+							 [0,                         0,                         1, 0]
+							 [0,                         0,                         0, 1]];
 				},
 
 				skewX: function(skx){
-					return	[[1, Math.tan(_dg2Rd(+skx)), 0, 0],
-							 [0, 1,                      0, 0],
-							 [0, 0,                      1, 0],
-							 [0, 0,                      0, 1]];
+					return	[[1, Math.tan(_degToRad(+skx)), 0, 0],
+							 [0, 1,                         0, 0],
+							 [0, 0,                         1, 0],
+							 [0, 0,                         0, 1]];
 				},
 
 				skewY: function(sky){
-					return	[[1,                      0, 0, 0],
-							 [Math.tan(_dg2Rd(+sky)), 1, 0, 0],
-							 [0,                      0, 1, 0],
-							 [0,                      0, 0, 1]];
+					return	[[1,                         0, 0, 0],
+							 [Math.tan(_degToRad(+sky)), 1, 0, 0],
+							 [0,                         0, 1, 0],
+							 [0,                         0, 0, 1]];
 				},
 
 				matrix: function(matrix){
-					return _to2dTM(matrix);
+					return __matrixArr(matrix);
 				},
 
-				matrix3d: function(matrix){
-					return _to3dTM(matrix);
-				}
+				matrix3d: function(matrix3d){
+					return __matrix3dArr(matrix3d);
+				}		
 			},
+
+		//-------------------------------Basic----------------------------------//
 
 		//create a (m,n) Matrix with values = 0
 		//@parameter: Number m [, Number n]
@@ -273,10 +275,71 @@
 				}	
 			},
 
+		//Multiply matrix or vectors
+		//@parameter Array (Matrix or Vector)
+		//@return: Array | Number
+		_dot = function(){
+				var a = arguments[0], b = arguments[1],
+					aDms = _getDms(a), bDms = _getDms(b),
+					argLength = arguments.length;
+				//Handle vector dot
+				if(aDms[0] === 1 && bDms[0] === 1 && aDms[1] === bDms[1]){
+					return _dotVV(a, b);
+				//Handle Matrix dot
+				}else if(aDms[0] === bDms[1]){
+					return _dotMM(a, b);
+				}else{
+					throw new Error('Matrix multiply failed: _dot');
+				}
+				//multiply two vector
+				//@parameter: Array a, Array b
+				//@return: number
+				function _dotVV(a, b){
+
+					var result = 0, 
+						i = 0,
+						n = _getDms(a)[1];
+
+					for(; i<n; i++){
+						result += a[i]*b[i];
+					}
+					return result;	
+				}
+
+				//
+				//@return: Array multiplied matrix
+				function _dotMM(a, b){
+
+					var row, column, i, 
+						aDms = _getDms(a), bDms = _getDms(b),
+						result = _newMatrix(aDms[0]);
+
+
+					for( row=0; row < aDms[0]; row++ ){
+						for( column=0; column < aDms[0]; column++ ){
+							for( i=0; i<aDms[0]; i++ ){
+
+								result[row][column] += 
+									(a[row][i] ? a[row][i] : 0) * ( b[i][column] ? b[i][column] : 0);
+
+							}
+
+							//elinminate inaccuracy
+							//eg. if rotate 45deg twice, result will be wrong without elinminating the very small error
+							if(Math.abs(result[row][column])<0.0000001){
+								result[row][column] = 0;
+							}
+						}
+					}
+
+					return result;
+				}
+			},
+
 		//Examine a data is a 2d transform matrix or not
 		//@parameter: * data to be examined
 		//@return Boolean
-		_is2dTM = function(a){
+		_isMatrixArr = function(a){
 				if(_isMOrV(a) === 'matrix' && _getDms(a)[0]===3 && _getDms(a)[1] === 3){
 					return true;
 				}else{
@@ -287,162 +350,201 @@
 		//Examine a data is a 3d transform matrix or not
 		//@parameter: * data to be examined
 		//@return Boolean
-		_is3dTM = function(a){
+		_isMatrix3dArr = function(a){
 				if(_isMOrV(a) === 'matrix' && _getDms(a)[0]===4 && _getDms(a)[1] === 4){
 					return true;
 				}else{
 					return false;
 				}
 			},
+		_isVectorArr = function(a){
+				return _getDms(a)[0] === 1 && _getDms(a)[1] === 6;
+			},
+		_isVector3dArr = function(a){
+				return _getDms(a)[0] === 1 && _getDms(a)[1] === 16;
+			},
+		_isMatrixStr = function(a){
+				return matrix_RE.exec(a) && a.match(float_RE).length === 6;
+			},
+		_isMatrix3dStr = function(a){
+				return matrix_RE.exec(a) && a.match(float_RE).length === 16;
 
-		_2dTMTo3dTM = function(2dTM){
-				if(!_is2dTM(2dTM)) 
-					throw new Error('Input Error: _2dTMto3dTM');
+			},
+		//Decompose transform directives string,
+		//@parameters: String like 'translateX(40px) rotate(30deg)'
+		//@return: Array ['translateX(40px)', 'rotate(30deg)']
+		_splitPropsStr = function(input){
+				return input.match(tfDirective_RE);
+			},
 
-				return [[2dTM[0][0], 2dTM[0][1], 0, 2dTM[0][2]],
-						[2dTM[1][0], 2dTM[1][1], 0, 2dTM[1][2]],
+
+		//-------------------------------3dfy----------------------------------//
+
+		//Turn a 2d transform matrix into a 3d transform matrix
+		//@parameter: Array[3][3] 2d transform matrix
+		//@return: Array[4][4] 3d transform matrix
+		_matrixArr3dfy = function(TM){
+				if(!_isMatrixArr(TM)) 
+					throw new Error('Input Error: _matrixArr3dfy');
+
+				return [[TM[0][0], TM[0][1], 0, TM[0][2]],
+						[TM[1][0], TM[1][1], 0, TM[1][2]],
 						[0, 0, 1, 0],
 						[0, 0, 0, 1]];
 			},
 
-		_2dVectorTo3dVector = function(2dVector){
-				if(!(_isArr(2dVector) && 2dVector.length === 6)) 
-					throw new Error('Input Error: _2dTMto3dTM');
+		//Turn a 2d transform vector into a 3d transform vector
+		//@parameter: Array[6] 2d vector
+		//@return: Array[16] 3d vector
+		_vectorArr3dfy = function(v){
+				if(!(_isArr(v) && v.length === 6)) 
+					throw new Error('Input Error: _matrixArr3dfy');
 
-				return [2dVector[0], 2dVector[1], 0, 0, 
-						2dVector[2], 2dVector[3], 0, 0, 
-						0,0,1,0,
-						2dVector[4], 2dVector[5], 0, 1];
-			};
+				return [v[0], v[1], 0, 0, 
+						v[2], v[3], 0, 0, 
+						0,    0,    1, 0,
+						v[4], v[5], 0, 1];
+			},
 
-	
-	
+	//-------------------------------Types Interchange------------------------------//
+		__vectorArr = function(input){
 
-	//Return: Array | Number
-	function _dot(){
-		var a = arguments[0], b = arguments[1],
-			aDms = _getDms(a), bDms = _getDms(b),
-			argLength = arguments.length;
-		//Handle vector dot
-		if(aDms[0] === 1 && bDms[0] === 1 && aDms[1] === bDms[1]){
-			return _dotVV(a, b);
-		//Handle Matrix dot
-		}else if(aDms[0] === bDms[1]){
-			return _dotMM(a, b);
-		}else{
-			throw new Error('Matrix multiply failed: _dot');
-		}
-		//multiply two vector
-		//@parameter: Array a, Array b
-		//@return: number
-		function _dotVV(a, b){
+			},
 
-			var result = 0, 
-				i = 0,
-				n = _getDms(a)[1];
+		__matrixArr = function(input){
 
-			for(; i<n; i++){
-				result += a[i]*b[i];
-			}
-			return result;	
-		}
+			},
 
-		//
-		//@return: Array multiplied matrix
-		function _dotMM(a, b){
+		//@return: String 'matrix(a,b,c,d,e,f)'
+		__matrixStr = function(input){
+				return "matrix(" + __vectorArr(input).join(',') + ")";
+			},
 
-			var row, column, i, 
-				aDms = _getDms(a), bDms = _getDms(b),
-				result = _newMatrix(aDms[0]);
+		//@parameters: Array (2d|3d Vector|Matrix) | String
+		//@return:Array[16] 3d vector
+		__vector3dArr = function(input){
 
+			if(_isArr(input)){
 
-			for( row=0; row < aDms[0]; row++ ){
-				for( column=0; column < aDms[0]; column++ ){
-					for( i=0; i<aDms[0]; i++ ){
+				//Return input, if it's already a 3d vector array
+				if( _isVector3dArr(input) ) 
+					return input;
 
-						result[row][column] += 
-							(a[row][i] ? a[row][i] : 0) * ( b[i][column] ? b[i][column] : 0);
+				//3dfy a 2d vector array
+				if( _isVectorArr(input) )
+					return _vectorArr3dfy(input);
 
-					}
+				//3dfy a 2d matrix array, and recall this function
+				if( _isMatrixArr(input) )
+					return __vector3dArr( _matrixArr3dfy( input ) );
 
-					//elinminate inaccuracy
-					//eg. if rotate 45deg twice, result will be wrong without elinminating the very small error
-					if(Math.abs(result[row][column])<0.0000001){
-						result[row][column] = 0;
-					}
+				//Throw error, if its not a 3d transform matrix array
+				if( !_isMatrix3dArr(input) )
+					throw new Error('Input Error: __vector3dArr');
+
+				//Input comes to here should be a 3d array matrix, go to the return at the end
+
+			}else if(typeof input === 'string'){
+
+				//turn matrix string into 3x3 matrix
+				if( _isMatrixStr(input) ){
+					input = _matrixArr3dfy(__2dTfMatrix(input));
+
+				}else if( _isMatrix3dStr(input) ){
+					input = _to3dTfMatrix(input);
+
+				}else{
+					throw new Error('Input Error: __vector3dArr');
 				}
 			}
+			
 
-			return result;
-		}
-	}
+			return [input[0][0], input[1][0], input[2][0], input[3][0], 
+					input[0][1], input[1][1], input[2][1], input[3][1], 
+					input[0][2], input[1][2], input[2][2], input[3][2],
+					input[0][3], input[1][3], input[2][3], input[3][3]];
+			},
 
-	//return 3d matrix(n,n,n,n,n,n,n,n,n,n,n,n,n,n,n,n)
-	function _toTDMatrixVector(input){
-		if(_isArr(input)){
-			//return if input is already a 6 vector
-			if(_getDms(input)[0] === 1 && _getDms(input)[1] === 16) 
-				return input;
+		__matrix3dArr = function(input){
+			
+			},
 
-			if(_getDms(input)[0] === 1 && _getDms(input)[1] === 6) 
-				return _toTDMatrixVector( _2dVectorTo3dVector(input) );
+		//@return: String 'matrix(n{16})'
+		__matrix3dStr = function(input){
+				return "matrix3d(" + __vector3dArr(input).join(',') + ")";
+			},
 
-			//throw error, if its not a 2d transform matrix
-			if(!_is2dTM(input))
-				throw new Error('Input Error: _toTDMatrixVector')
+		//Calculate a series of 2d transform,
+		//@paratmer: String like 'translateX(40px) rotate(30deg)'
+		//@return: Array [3x3 Transform Matrix]
+		_computeMatrixArr = function(input){
 
-			//go to the return at the end
+			},
 
-		}else if(typeof input === 'string'){
+		//Calculate a series of 3d transform,
+		//@paratmer: String like 'translateX(40px) rotateX(30deg)'
+		//@return: Array [4x4 Transform Matrix]
+		_computeMatrix3dArr = function(input){
+				var stack, i, l, type, value, output;
 
-			if (tfMatrix_RE.exec(input) && (input.match(float_RE).length !== 6 || input.match(float_RE).length !== 16) 
-				throw new Error('Input Error: _toTDMatrixVector')
+				//Seperate each transform directive
+				stack = typeof input === 'string' ? _splitPropsStr(input) : null;
 
-			//turn matix string into 3x3 matrix
-			if(input.match(float_RE).length === 6)
-			input = _2dTMTo3dTM(_to2dTM(input));
+				//If input is 'none' or something else
+				if( !stack ) {
 
-			//turn matix string into 3x3 matrix
-			if(input.match(float_RE).length === 16)
-			input = _to3dTM(input);
+					if( input.match('none') ) {
+						output = _noTransformTM;
+					}else{
+						throw new Error('Input error _TfPropsTo2dTfMatrix: not a valid transform string')
+					}
+			
+				//Turn input into matrix
+				}else{
+					//Handle each transform directive
+					for( i = 0, l = stack.length; i<l; i++ ){
+						//Get transform type and value
+						type = stack[i].match( tfDirectiveType_RE );
+						value = stack[i].match( float_RE );
 
-		}
+						//Translate transform directive into matrix
+						//and multiply exist matrix by it
+						output = output ? 
+									_dot(output, _propValueToMatrix3dArr[type](value)) : 
+									_propValueToMatrix3dArr[type](value);
+					}
+				}
 
-		return [input[0][0], input[1][0], input[2][0], input[3][0], 
-				input[0][1], input[1][1], input[2][1], input[3][1], 
-				input[0][2], input[1][2], input[2][2], input[3][2],
-				input[0][3], input[1][3], input[2][3], input[3][3]];
-	}
+				return output;
+			};
 
 
-	//Decompose transform directives string,
-	//Arg: String like 'translateX(40px) rotate(30deg)'
-	//Return: Array ['translateX(40px)', 'rotate(30deg)']
-	function _splitTDStr(input){
-		return input.match(tfDirective_RE);
-	}
 
+	
+	/*
 	//Translate a Transform Matrix into transform matrix string
 	//@parameters: Array [3x3 Transform Matrix] | [4x4 Transform Matrix]
 	//@return: String 'matrix(n{15,15})'
-	function _toTDMatrix(input){
+	function _toTfPropMatrix(input){
 		var type;
+		//Turn String inputs like transform matrix into matrix Array and recall this function
 		if(typeof input === 'string'){
-			if (tfMatrix_RE.exec(input) && (input.match(float_RE).length !== 6 || input.match(float_RE).length !== 16) 
-				throw new Error('Input Error: _toTDMatrix');
+			if (matrix_RE.exec(input) && 
+				(input.match(float_RE).length !== 6 || input.match(float_RE).length !== 16))
+				throw new Error('Input Error: _toTfPropMatrix');
 
 			//Handle transform matrix string;
 			if(input.match(float_RE).length === 6)
 				//MODIFY END
-				return _toTDMatrix(_TDTo2dTM(input));
+				return _toTfPropMatrix(_TfPropsTo2dTfMatrix(input));
 
 			if(input.match(float_RE).length === 16)
-
+				return _toTfPropMatrix();
 
 		}else if(_isArr(input)){
 
 			//Handle 3x3 matrix: turn into 1x6 vector
-			if(_is2dTM(input)){
+			if(_isMatrixArr(input)){
 				type = 'matrix('
 				input = [input[0][0], input[1][0], input[0][1], input[1][1], input[0][2], input[1][2]];
 			}
@@ -450,70 +552,10 @@
 			return type + input.join(', ') + ')'
 		}
 	}
+	*/
 
 
-	//Translate a Transform Matrix into transform matrix string
-	//@parameters: Array [3x3 Transform Matrix]
-	//@return: String 'matrix(a,b,c,d,e,f)'
-	function _to2dTM(input){
-		if(_is2dTM(input)) return input;
-		if(typeof input === 'string') return _TDTo2dTM(input); 
-		if(!_isArr(input)) throw new Error('Input Error _to2dTM');
-
-		//handle [a,b,c,d,e,f]
-		if(input.length === 6){
-			return [
-				[+input[0], +input[2], +input[4]],
-				[+input[1], +input[3], +input[5]],
-				[0, 0, 1]
-			];
-		//return if input is already a 2D Transform Matrix 
-		}else if(_is2dTM(input)){
-			return input;
-		}else{
-			throw new Error('Input Error: _to2dTM')
-		}
-	}
-	
-	//Calculate a series of transform,
-	//@paratmer: String like 'translateX(40px) rotate(30deg)'
-	//@return: Array [3x3 Transform Matrix]
-	function _TDTo2dTM(input){
-		var stack, i, l, type, value, output;
-		if(typeof input !== 'string') throw new Error('Input error _TDTo2dTM: not a valid transform string')
-
-		//Seperate each transform directive
-		stack = _splitTDStr(input);
-
-		//If input is 'none' or something else
-		if( !stack ) {
-
-			if(input.match('matrix')){
-				//NEED FIXED
-			}else if( input.match('none') ) {
-				output = _noTransformTM;
-			}else{
-				throw new Error('Input error _TDTo2dTM: not a valid transform string')
-			}
-	
-		//Turn input into matrix
-		}else{
-			//Handle each transform directive
-			for( i = 0, l = stack.length; i<l; i++ ){
-				//Get transform type and value
-				type = stack[i].match( tfDirectiveType_RE );
-				value = stack[i].match( float_RE );
-
-				//Translate transform directive into matrix, and dot to exist matrix
-				output = output ? 
-							_dot(output, _TDValue2TM[type](value)) : 
-							_TDValue2TM[type](value);
-			}
-		}
-
-		return output;
-		
-	}
+	//-------------------------External APIs----------------------------------//
 
 	//@parameter: String css selector
 	//@return tf object
@@ -543,6 +585,7 @@
 		//works for [DOM Elements]
 		getTransform : function(){
 			var i, result = [],
+
 				getTransform = function(elem){
 					var style = window.getComputedStyle(elem);
 					//need fix
@@ -566,7 +609,7 @@
 			duration = duration || 0;
 
 			//get matrix() string
-			tfMtxStr = _toTDMatrix( _to2dTM(input) );
+			tfMtxStr = __matrix3dStr( _computeMatrix3dArr(input) );
 
 			//set transform property for each element
 			if(duration === 0){
@@ -593,13 +636,13 @@
 		//@parameter: String like 'rotate( 45deg ) transform(100px, 32px)'
 		addTransform: function(input){
 			this.setTransform( _dot(
-				_to2dTM( this.getTransform() ), _to2dTM(input)
+				__2dTfMatrix( this.getTransform() ), __2dTfMatrix(input)
 			));
 		},
 
 		insertTransform : function(input){
 			this.setTransform( _dot(
-				_to2dTM(input), _to2dTM( this.getTransform() )
+				__2dTfMatrix(input), __2dTfMatrix( this.getTransform() )
 			));
 		},
 
