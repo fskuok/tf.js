@@ -123,7 +123,7 @@
 		_degToRad = function(d){ return d*_PI/180; },
 
 		_rd2Dg = function(r){ return r/_PI*180; },
-		
+
 		_propValueToMatrix3dArr = {
 				translate3d: function(t3d){
 					return	[[1, 0, 0, +t3d[0]],
@@ -176,7 +176,7 @@
 				rotate3d: function(r){
 					var x= r[0], y = r[1], z = r[2], a=r[3],
 						sc=Math.sin(_degToRad((+a)/2))*Math.cos(_degToRad((+a)/2)),
-						sq=Math.sin(_degToRad((+a)/2));
+						sq=Math.sin(_degToRad((+a)/2))*Math.sin(_degToRad((+a)/2));
 
 					return	[[1-2*(y*y+z*z)*sq, 2*(x*y*sq-z*sc),  2*(x*z*sq+y*sc),  0],
 							 [2*(x*y*sq+z*sc),  1-2*(x*x+z*z)*sq, 2*(y*z*sq-x*sc),  0],
@@ -298,14 +298,18 @@
 				var a = arguments[0], b = arguments[1],
 					aDms = _getDms(a), bDms = _getDms(b),
 					argLength = arguments.length;
+
 				//Handle vector dot
 				if(aDms[0] === 1 && bDms[0] === 1 && aDms[1] === bDms[1]){
 					return _dotVV(a, b);
+
 				//Handle Matrix dot
 				}else if(aDms[0] === bDms[1]){
 					return _dotMM(a, b);
+
 				}else{
 					throw new Error('Matrix multiply failed: _dot');
+
 				}
 				//multiply two vector
 				//@parameter: Array a, Array b
@@ -319,6 +323,7 @@
 					for(; i<n; i++){
 						result += a[i]*b[i];
 					}
+
 					return result;	
 				}
 
