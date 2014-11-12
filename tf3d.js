@@ -87,6 +87,8 @@
 
 		_initVector3dArr = [[1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]],
 
+		_elinmination = 1e-10,
+
 		//transform directives fragments
 		_transforms = 'rotate|rotate3d|rotateX|rotateY|rotateZ|translate|translate3d|translateX|translateY|translateZ|scale|scaleX|scaleY|scaleZ|skew|skewX|skewY|skewZ'.split('|'),
 
@@ -297,39 +299,24 @@
 		_dot = function(){
 				var a = arguments[0], b = arguments[1],
 					aDms = _getDms(a), bDms = _getDms(b),
-					argLength = arguments.length;
+					argLen = arguments.length;
 
-				//Handle vector dot
-				if(aDms[0] === 1 && bDms[0] === 1 && aDms[1] === bDms[1]){
-					return _dotVV(a, b);
-
-				//Handle Matrix dot
-				}else if(aDms[0] === bDms[1]){
-					return _dotMM(a, b);
-
-				}else{
-					throw new Error('Matrix multiply failed: _dot');
-
-				}
 				//multiply two vector
 				//@parameter: Array a, Array b
 				//@return: number
 				function _dotVV(a, b){
 
-					var result = 0, 
-						i = 0,
+					var result = 0, i = 0, 
 						n = _getDms(a)[1];
 
-					for(; i<n; i++){
-						result += a[i]*b[i];
-					}
+					for(; i<n; i++) result += a[i]*b[i];
 
 					return result;	
 				}
 
-				//
-				//@return: Array multiplied matrix
-				function _dotMM(a, b){
+				//multiply two matrix, or matrix and vector
+				//@return: Array Multiplied matrix
+				function _dotM(a, b){
 
 					var row, column, i, 
 						aDms = _getDms(a), bDms = _getDms(b),
@@ -337,8 +324,8 @@
 
 
 					for( row=0; row < aDms[0]; row++ ){
-						for( column=0; column < aDms[0]; column++ ){
-							for( i=0; i<aDms[0]; i++ ){
+						for( column = 0; column < aDms[0]; column++ ){
+							for( i = 0; i < aDms[0]; i++ ){
 
 								result[row][column] += 
 									(a[row][i] ? a[row][i] : 0) * ( b[i][column] ? b[i][column] : 0);
@@ -347,49 +334,73 @@
 
 							//elinminate inaccuracy
 							//eg. if rotate 45deg twice, result will be wrong without elinminating the very small error
-							if(Math.abs(result[row][column])<0.0000001){
+							if(Math.abs(result[row][column]) < _elinmination){
 								result[row][column] = 0;
 							}
 						}
 					}
 
+
 					return result;
 				}
+
+				//Handle vector dot
+				if(_isMOrV(a) === 'vector' && _isMOrV(b) === 'vector' && aDms[1] === bDms[1]){
+					return _dotVV(a, b);
+
+				//Handle Matrix dot
+				}else if(aDms[0] === bDms[1]){
+					return _dotM(a, b);
+
+				}else{
+					throw new Error('Matrix multiply failed: _dot');
+				}
+				
 			},
 
 		//Examine a data is a 2d transform matrix or not
 		//@parameter: * data to be examined
 		//@return Boolean
 		_isMatrixArr = function(a){
-				if(_isMOrV(a) === 'matrix' && _getDms(a)[0]===3 && _getDms(a)[1] === 3){
-					return true;
-				}else{
-					return false;
-				}
+				return _isMOrV(a) === 'matrix' && _getDms(a)[0]=== 3 && _getDms(a)[1] === 3;
 			},
 
 		//Examine a data is a 3d transform matrix or not
 		//@parameter: * data to be examined
 		//@return Boolean
 		_isMatrix3dArr = function(a){
-				if(_isMOrV(a) === 'matrix' && _getDms(a)[0]===4 && _getDms(a)[1] === 4){
-					return true;
-				}else{
-					return false;
-				}
+				return _isMOrV(a) === 'matrix' && _getDms(a)[0]=== 4 && _getDms(a)[1] === 4;
 			},
+
 		_isVectorArr = function(a){
 				return _getDms(a)[0] === 1 && _getDms(a)[1] === 6;
 			},
+
 		_isVector3dArr = function(a){
 				return _getDms(a)[0] === 1 && _getDms(a)[1] === 16;
 			},
+
 		_isMatrixStr = function(a){
 				return matrix_RE.exec(a) && a.match(float_RE).length === 6;
 			},
+
 		_isMatrix3dStr = function(a){
 				//length is 17 because 3 in matrix3d() will also be matched
 				return matrix3d_RE.exec(a) && a.match(float_RE).length === 17;
+			},
+		_is_ = function(a){
+				if(_isArr(a)){
+					if(_isMatrix3dArr(a)) return 'matrix3dArr';
+					if(_isMatrixArr(a)) return 'matrixArr';
+					if(_isVector3dArr(a)) return 'vector3dArr';
+					if(_isVectorArr(a)) return 'vectorArr';
+				}else if(typeof a ==='string'){
+					if(_isMatrix3dStr(a)) return 'matrix3dStr';
+					if(_isMatrixStr(a)) return 'matrixStr';
+					if( a === 'none' ) return 'none';
+				}else{
+					return undefined;
+				}
 			},
 		//Decompose transform directives string,
 		//@parameters: String like 'translateX(40px) rotate(30deg)'
@@ -404,14 +415,14 @@
 		//Turn a 2d transform matrix into a 3d transform matrix
 		//@parameter: Array[3][3] 2d transform matrix
 		//@return: Array[4][4] 3d transform matrix
-		_matrixArr3dfy = function(TM){
+		_matrixArr3dfy = function(m){
 				if(!_isMatrixArr(TM)) 
 					throw new Error('Input Error: _matrixArr3dfy');
 
-				return [[TM[0][0], TM[0][1], 0, TM[0][2]],
-						[TM[1][0], TM[1][1], 0, TM[1][2]],
-						[0, 0, 1, 0],
-						[0, 0, 0, 1]];
+				return [[m[0][0], m[0][1], 0, m[0][2]],
+						[m[1][0], m[1][1], 0, m[1][2]],
+						[0      , 0      , 1, 0      ],
+						[0      , 0      , 0, 1      ]];
 			},
 
 		//Turn a 2d transform vector into a 3d transform vector
@@ -421,208 +432,178 @@
 				if(!(_isArr(v) && v.length === 6)) 
 					throw new Error('Input Error: _matrixArr3dfy');
 
-				return [v[0], v[1], 0, 0, 
+				return [
+						v[0], v[1], 0, 0, 
 						v[2], v[3], 0, 0, 
 						0,    0,    1, 0,
-						v[4], v[5], 0, 1];
+						v[4], v[5], 0, 1
+						];
 			},
 
 	//-------------------------------Types Interchange------------------------------//
 		//@parameter: Array 3d vector
 		//@return: Array 3d matrix
 		_vector3dArr_matrix3dArr = function(input){
-				return [[input[0], input[4], input[8], input[12]], 
-						[input[1], input[5], input[9], input[13]], 
+				return [
+						[input[0], input[4], input[8] , input[12]], 
+						[input[1], input[5], input[9] , input[13]], 
 						[input[2], input[6], input[10], input[14]],
-						[input[3], input[7], input[11], input[15]]]
+						[input[3], input[7], input[11], input[15]]
+						];
 			},
 		_vectorArr_matrixArr = function(input){
-				return [[input[0], input[2], input[4]], 
+				return [
+						[input[0], input[2], input[4]], 
 						[input[1], input[3], input[5]], 
-						[0, 0, 1]];
+						[0       , 0       , 1       ]
+						];
 			},
 		//@parameter: Array 3d matrix
 		//@return: Array 3d vector
 		_matrix3dArr_vector3dArr = function(input){
-				return [input[0][0], input[1][0], input[2][0], input[3][0], 
+				return [
+						input[0][0], input[1][0], input[2][0], input[3][0], 
 						input[0][1], input[1][1], input[2][1], input[3][1], 
 						input[0][2], input[1][2], input[2][2], input[3][2],
-						input[0][3], input[1][3], input[2][3], input[3][3]]
+						input[0][3], input[1][3], input[2][3], input[3][3]
+						];
 			},
 		_matrixArr_vectorArr = function(input){
-				return [input[0][0], input[1][0], input[2][0],
-						input[0][1], input[1][1], input[2][1]]
+				return [
+						input[0][0], input[1][0], input[2][0],
+						input[0][1], input[1][1], input[2][1]
+						];
 			},
 
 		//@parameters: Array (2d Vector|Matrix) | String
 		//@return: Array[6] 2d vector
 		__vectorArr = function(input){
-				//Convert input into a 3d matrix array first
-				//Handle 2d, 3d matrix or 2d, 3d vector array
-				if( _isArr(input) ){
-
-					//3dfy a 2d vector array
-					if( _isVectorArr(input) )
-						return input;
-
-					//Throw error, if its not a 3d transform matrix array
-					if( !_isMatrixArr(input) )
-						throw new Error('Input Error: __vector3dArr');
-
-					//Input comes to here should be a 3d array matrix, go to the return at the end
-
-				}else if( typeof input === 'string' ){
-
-					//Handle matrix string
-					if( _isMatrixStr(input) ){
+				switch(_is_(input)){
+					case 'matrixStr':
 						return input.match(float_RE);
 
-					//Handle 3d matrix string
-					}else if(input === 'none'){
-						return  _initMatrix3dArr.slice();
+					case 'matrixArr':
+						break;
 
-					}else{
-						throw new Error('Input Error: __vector3dArr');
-					}
+					case 'vectorArr':
+						return input;
+
+					case 'none':
+						input = _initMatrixArr.slice();
+						break;
+
+					default:
+						throw new Error('__vectorArr can not handle: ' + input);
 				}
+				//Convert input into a 2d matrix array first
+
 
 				return _matrixArr_vectorArr(input);
+			},
+
+		//@parameters: Array (2d|3d Vector|Matrix) | String
+		//@return:Array[16] 3d vector
+		__vector3dArr = function(input){
+
+				switch(_is_(input)){
+					case 'matrixStr':
+						return _vectorArr3dfy( input.match(float_RE) );
+
+					case 'matrix3dStr':
+						return input.match(float_RE);
+
+					case 'matrixArr':
+						input = _matrixArr3dfy( input );
+						break;
+
+					case 'matrix3dArr':
+						break;
+
+					case 'vectorArr':
+						return _vectorArr3dfy(input);
+
+					case 'vector3dArr':
+						return input;
+
+					case 'none':
+						return  _initVector3dArr.slice();
+
+					default:
+						throw new Error('__vector3dArr can not handle: ' + input);
+				}
+
+				return _matrix3dArr_vector3dArr(input);
+			},
+
+		__matrixArr = function(input){
+
+				//Convert input into a vector array
+				switch(_is_(input)){
+					case 'matrixStr':
+						input = input.match(float_RE);
+						break;
+
+					case 'matrixArr':
+						return input;
+					
+					case 'vectorArr':
+						break;
+
+					case 'none':
+						return  _initMatrixArr.slice();
+
+					default:
+						throw new Error('__matrixArr can not handle: ' + input);
+				}
+				
+				//Input comes to here should be a vector array
+				return _vectorArr_matrixArr(input);
+			},
+
+		__matrix3dArr = function(input){
+			console.log(_is_(input));
+
+				switch(_is_(input)){
+					case 'matrixStr':
+						input = _vectorArr3dfy( input.match(float_RE) );
+						break;
+
+					case 'matrix3dStr':
+						input = input.match( float_RE );
+						break;
+
+					case 'matrixArr':
+						return _matrixArr3dfy( input );
+
+					case 'matrix3dArr':
+						return input;
+
+					case 'vectorArr':
+						input = _vectorArr3dfy( input );
+						break;
+
+					case 'vector3dArr':
+						break;
+
+					case 'none':
+						return  _initMatrix3dArr.slice();
+
+					default:
+						throw new Error('__matrix3dArr can not handle: ' + input);
+				}
+
+				//Input comes to here should be a 3d vector array
+				return _vector3dArr_matrix3dArr(input);
+			},
+		
+		//@return: String 'matrix(n{16})'
+		__matrix3dStr = function(input){
+				return "matrix3d(" + __vector3dArr(input).join(',') + ")";
 			},
 
 		//@return: String 'matrix(a,b,c,d,e,f)'
 		__matrixStr = function(input){
 				return "matrix(" + __vectorArr(input).join(',') + ")";
-			},
-
-		__matrixArr = function(input){
-				//Convert input into a 3d vector array first
-				//Handle 2d, 3d matrix or 2d, 3d vector array
-				if(_isArr(input)){
-
-					//3dfy a 2d matrix array
-					if( _isMatrixArr(input) )
-						return input;
-
-					//Throw error, if its not a 3d transform matrix array
-					if( !_isVectorArr(input) )
-						throw new Error('Input Error: __matrix3dArr');
-
-					//Input comes to here should be a 3d array vector, go to the return at the end
-
-				//Handle matrix() and matrix3d()
-				}else if(typeof input === 'string'){
-
-					//turn 2d matrix string into 2d matrix array
-					if( _isMatrixStr(input) ){
-						input = input.match(float_RE);
-
-					//turn 2d matrix string into 3d matrix array
-					}else if(input === 'none'){
-						return  _initMatrix3dArr.slice();
-
-					}else{
-						throw new Error('Input Error: __matrix3dArr');
-					}
-				}
-				
-				return _vectorArr_matrixArr(input);
-			},
-		
-		//@parameters: Array (2d|3d Vector|Matrix) | String
-		//@return:Array[16] 3d vector
-		__vector3dArr = function(input){
-				//Convert input into a 3d matrix array first
-				//Handle 2d, 3d matrix or 2d, 3d vector array
-				if( _isArr(input) ){
-
-					//Return input, if it's already a 3d vector array
-					if( _isVector3dArr(input) ) 
-						return input;
-
-					//3dfy a 2d vector array
-					if( _isVectorArr(input) )
-						return _vectorArr3dfy(input);
-
-					//3dfy a 2d matrix array, and recall this function
-					if( _isMatrixArr(input) )
-						return __vector3dArr( _matrixArr3dfy( input ) );
-
-					//Throw error, if its not a 3d transform matrix array
-					if( !_isMatrix3dArr(input) )
-						throw new Error('Input Error: __vector3dArr');
-
-					//Input comes to here should be a 3d array matrix, go to the return at the end
-
-				}else if( typeof input === 'string' ){
-
-					//Handle matrix string
-					if( _isMatrixStr(input) ){
-						return _vectorArr3dfy( input.match(float_RE) );
-
-					//Handle 3d matrix string
-					}else if( _isMatrix3dStr(input) ){
-						return input.match(float_RE);
-
-					}else if(input === 'none'){
-						return  _initVector3dArr.slice();
-
-					}else{
-						throw new Error('Input Error: __vector3dArr');
-					}
-				}
-				
-
-				return _matrix3dArr_vector3dArr(input);
-			},
-
-		__matrix3dArr = function(input){
-				//Convert input into a 3d vector array first
-				//Handle 2d, 3d matrix or 2d, 3d vector array
-				if(_isArr(input)){
-					//Return input, if it's already a 3d vector array
-					if( _isMatrix3dArr(input) )
-						return input;
-
-					//3dfy a 2d matrix array
-					if( _isMatrixArr(input) )
-						return _matrixArr3dfy(input);
-
-					//3dfy a 2d matrix array, and recall this function
-					if( _isVectorArr(input) )
-						return __matrix3dArr( _vectorArr3dfy( input ) );
-
-					//Throw error, if its not a 3d transform matrix array
-					if( !_isVector3dArr(input) )
-						throw new Error('Input Error: __matrix3dArr');
-
-					//Input comes to here should be a 3d array vector, go to the return at the end
-
-				//Handle matrix() and matrix3d()
-				}else if(typeof input === 'string'){
-					console.log('aaa', input, _isMatrix3dStr(input));
-
-					//turn 2d matrix string into 3d matrix array
-					if( _isMatrixStr(input) ){
-						input = _vectorArr3dfy( input.match(float_RE) );
-
-					//turn 2d matrix string into 3d matrix array
-					}else if( _isMatrix3dStr(input) ){
-						input = input.match(float_RE);
-
-					}else if(input === 'none'){
-						return  _initMatrix3dArr.slice();
-
-					}else{
-						throw new Error('Input Error: __matrix3dArr');
-					}
-				}
-				
-				return _vector3dArr_matrix3dArr(input);
-			},
-
-		//@return: String 'matrix(n{16})'
-		__matrix3dStr = function(input){
-				return "matrix3d(" + __vector3dArr(input).join(',') + ")";
 			},
 
 		//Calculate a series of 3d transform,
